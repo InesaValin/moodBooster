@@ -117,21 +117,34 @@ class QuoteViewController: UIViewController {
             quoteLabel.sizeToFit()
         }
     }
+
+    struct Joke: Decodable {
+        let id: String?
+        let joke: String?
+        let status: Int?
+        
+    }
     
     @objc func loadJokeData() {
-        Task { let url = URL(string: "https://icanhazdadjoke.com")!
-            var request = URLRequest(url: url)
-            request.setValue("I.V.K", forHTTPHeaderField: "User-Agent")
-            request.setValue("text/plain", forHTTPHeaderField: "Accept")
-            
-            let (data, _) = try await URLSession.shared.data(for: request)
-            
-            if let jokeString = String(data: data, encoding: .utf8) {
-                self.joke = jokeString
-            } else {
-                self.joke = "Load failed."
+        
+        guard let url = URL(string: "https://icanhazdadjoke.com/") else { return }
+        var urlRequest = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 10)
+        urlRequest.httpMethod = "GET"
+        urlRequest.setValue("I.V.K", forHTTPHeaderField: "User-Agent")
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        dataTask?.cancel()
+        dataTask = URLSession.shared.dataTask(with: urlRequest) { (data, response, error) in
+            guard let data = data, error == nil else {
+                return
+            }
+            if let decodedData = try? JSONDecoder().decode(Joke.self, from: data) {
+                DispatchQueue.main.async {
+                    self.joke = decodedData.joke
+                }
             }
         }
+        dataTask?.resume()
     }
     
     //MARK: - Chuck Norris fact button
